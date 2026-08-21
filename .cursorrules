@@ -1,0 +1,9 @@
+# Daily Work Log
+
+GitLab (`origin`) is the working copy. GitHub is a public mirror of `main` only.
+
+Do not commit `.cursor/`, `.venv/`, `data/credentials.json`, `data/worklog.db`, `data/*.xlsx`, `data/backups/`, or `worklog-windows-*.zip`.
+
+Do not push topic branches to GitHub. Do not add extra remotes. After a Cursor/feature branch is merged to `main`, delete it.
+
+Do not force-push `main`.

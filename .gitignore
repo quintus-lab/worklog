@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+*.swp
+*.bak
+*.log
+*.pid
+
+# Local secrets and runtime data
+data/.session_secret
+data/credentials.json
+data/worklog.db
+data/worklog.db-wal
+data/worklog.db-shm
+data/worklog.log
+data/backups/
+data/*.xlsx
+!data/.gitkeep
+
+# Editor / cloud-agent leftovers (keep committed project rules)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
+# Pack-for-windows output (generated, not source)
+worklog-windows-*.zip

@@ -1,0 +1,12 @@
+---
+description: GitLab is the working copy; GitHub is a public mirror of main only
+alwaysApply: true
+---
+
+GitLab (`origin`) is the working copy. GitHub is a public mirror of `main` only.
+
+Do not commit `.cursor/` (except `.cursor/rules/`), `.venv/`, `data/credentials.json`, `data/worklog.db`, `data/*.xlsx`, `data/backups/`, or `worklog-windows-*.zip`.
+
+Do not push topic branches to GitHub. Do not add a GitHub remote. Do not "sync all branches". After a Cursor or feature branch is merged to `main` on GitLab, delete the source branch.
+
+Do not force-push `main`.

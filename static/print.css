@@ -1,0 +1,51 @@
+/* Print-friendly weekly summary */
+
+body.print-page .entry-details > summary {
+  display: none;
+}
+
+body.print-page .entry-details-body {
+  display: block;
+}
+
+@media print {
+  .topbar,
+  .footer,
+  .toast,
+  .no-print-actions,
+  .theme-toggle,
+  .font-toggle,
+  .skip-link,
+  .security-banner {
+    display: none !important;
+  }
+
+  body {
+    background: #f5f4ed !important;
+    color: #141413 !important;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  .container {
+    max-width: none;
+    padding: 0;
+  }
+
+  .card,
+  .entry-card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+
+  .entry-details > summary {
+    display: none;
+  }
+
+  .entry-details-body {
+    display: block !important;
+  }
+}

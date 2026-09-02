@@ -191,6 +191,7 @@ def api_me(req: Request) -> Response:
 
 def api_entries_list(req: Request) -> Response:
     q = req.q("q")
+    tag = req.q("tag")
     start = req.q("start")
     end = req.q("end")
     status = req.q("status")
@@ -205,14 +206,16 @@ def api_entries_list(req: Request) -> Response:
         offset = 0
     offset = max(offset, 0)
     entries = storage.load_entries(
-        start=start, end=end, q=q, status=status, limit=limit, offset=offset
+        start=start, end=end, q=q, tag=tag, status=status, limit=limit, offset=offset
     )
     return Response.json(
         200,
         {
             "entries": entries,
             "count": len(entries),
-            "total": storage.count_entries(start=start, end=end, q=q, status=status),
+            "total": storage.count_entries(
+                start=start, end=end, q=q, tag=tag, status=status
+            ),
         },
     )
 

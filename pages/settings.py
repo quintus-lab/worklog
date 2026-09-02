@@ -42,8 +42,10 @@ def page_settings(
     ticket_card = f"""
 <section class="card" aria-labelledby="ticket-heading">
   <div class="card-head"><h2 id="ticket-heading">Ticket system</h2></div>
-  <p class="muted small">When a URL is set, ticket IDs in titles, tags, and details become links
-  (opens in a new tab on the host you configure). Put <code>{{ticket}}</code> where the ID goes, for example
+  <p class="muted small">When a URL is set, ticket IDs typed in the <strong>Tags</strong> field become
+  links (opens in a new tab). Numbers in title or details are not linked. Matches INC/CHG-style
+  prefixes, Jira <code>KEY-123</code>, and 6-12 digit IDs such as <code>1234567</code>.
+  Put <code>{{ticket}}</code> where the ID goes, for example
   <code>https://jira.example.com/browse/{{ticket}}</code>.</p>
   <form id="ticket-form" class="stack">
     <label class="field"><span class="field-label">Ticket URL</span>
@@ -53,7 +55,7 @@ def page_settings(
       <input type="text" id="ticket-prefixes" value="{ticket_prefixes}" maxlength="200"
         placeholder="{ticket_defaults}" spellcheck="false"{ticket_ro} />
       <span class="field-hint">Comma-separated, e.g. <code>INC,CHG,NET</code>. Blank uses
-      <code>{ticket_defaults}</code>. Jira-style <code>KEY-123</code> is always recognized. Matching is case-insensitive.</span></label>
+      <code>{ticket_defaults}</code>. Jira-style <code>KEY-123</code> and 6-12 digit numbers are always recognized. Matching is case-insensitive.</span></label>
     {ticket_actions}
   </form>
 </section>

@@ -29,9 +29,10 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
     writable = auth.can_write(user)
     today = date.today().isoformat()
     q = storage.clip_search_q((qs.get("q") or [""])[0]) or ""
+    tag = storage.clip_tag_filter((qs.get("tag") or [""])[0])
     page = parse_page(qs)
     per = parse_per_page(qs, default=INDEX_PER_PAGE)
-    total = storage.count_entries(q=q or None)
+    total = storage.count_entries(q=q or None, tag=tag)
     offset = (page - 1) * per
     # clamp page if past end
     pages = max(1, (total + per - 1) // per) if total else 1
@@ -40,16 +41,17 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
         offset = (page - 1) * per
 
     ticket = storage.get_ticket_settings()
-    entries = storage.load_entries(q=q or None, limit=per, offset=offset)
+    entries = storage.load_entries(q=q or None, tag=tag, limit=per, offset=offset)
     if entries:
         entries_html = "\n".join(
             render_entry(e, editable=writable, ticket=ticket) for e in entries
         )
-    elif q:
+    elif q or tag:
+        needle = tag or q
         entries_html = (
             f'<div class="empty-state" id="empty-state"><h3>No matches</h3>'
-            f'<p class="muted">Nothing matched “{esc(q)}”. '
-            f'<a href="/">Clear search</a></p></div>'
+            f'<p class="muted">Nothing matched “{esc(needle)}”. '
+            f'<a href="/">Clear filter</a></p></div>'
         )
     else:
         entries_html = (
@@ -61,7 +63,7 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
         total=total,
         per_page=per,
         base_path="/",
-        extra_params={"per": str(per), "q": q},
+        extra_params={"per": str(per), "q": q, "tag": tag or ""},
     )
 
     per_opts = "".join(
@@ -69,7 +71,9 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
         for n in PER_PAGE_CHOICES
     )
     clear_btn = (
-        f'<a class="btn btn-ghost btn-sm" href="/?per={per}">Clear search</a>' if q else ""
+        f'<a class="btn btn-ghost btn-sm" href="/?per={per}">Clear filter</a>'
+        if q or tag
+        else ""
     )
 
     form = ""
@@ -88,8 +92,10 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
         <select name="status" id="status">{status_options()}</select></label>
     </div>
     <div class="grid-2">
-      <label class="field"><span class="field-label">Tags / ticket <span class="field-hint">optional</span></span>
-        <input type="text" name="tags" id="tags" maxlength="200" placeholder="INC12345, BGP" /></label>
+      <label class="field"><span class="field-label">Tags <span class="field-hint">optional</span></span>
+        <input type="text" name="tags" id="tags" maxlength="200"
+          placeholder="HRM BGP 1234567" />
+        <span class="field-hint">Space-separated. 6-12 digit IDs and INC/CHG/KEY-123 become tickets.</span></label>
       <label class="field"><span class="field-label">Follow-up date <span class="field-hint">optional</span></span>
         <input type="date" name="follow_up" id="follow_up" /></label>
     </div>
@@ -124,7 +130,7 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
     <p class="lede">{"Saved to SQLite; Excel is always available to export." if writable else "View-only access."}</p>
   </div>
   <div class="stat-pills">
-    <span class="stat-pill"><strong>{total}</strong> {"match" if q and total == 1 else "matches" if q else "total"}</span>
+    <span class="stat-pill"><strong>{total}</strong> {"match" if (q or tag) and total == 1 else "matches" if (q or tag) else "total"}</span>
     <span class="stat-pill muted">page {page} · {per} each</span>
     <a class="stat-pill" href="/history">Advanced search</a>
   </div>
@@ -132,11 +138,12 @@ def page_index(user: str, qs: dict | None = None, *, csrf_token: str = "") -> st
 {form}
 <section class="list-section" aria-labelledby="recent-heading">
   <div class="section-head">
-    <h2 id="recent-heading">{"Matches" if q else "Entries"}</h2>
+    <h2 id="recent-heading">{"Tag " + esc(tag) if tag else "Matches" if q else "Entries"}</h2>
     <div class="list-controls">
       <form method="get" action="/" class="per-page-form">
         <input type="hidden" name="page" value="1" />
         <input type="hidden" name="q" value="{esc(q)}" />
+        <input type="hidden" name="tag" value="{esc(tag or "")}" />
         <label class="field-inline">
           <span class="visually-hidden">Per page</span>
           <select name="per" onchange="this.form.submit()" aria-label="Entries per page">

@@ -20,13 +20,14 @@ from pages.layout import layout
 
 def page_history(user: str, qs: dict, *, csrf_token: str = "") -> str:
     q = storage.clip_search_q((qs.get("q") or [""])[0]) or ""
+    tag = storage.clip_tag_filter((qs.get("tag") or [""])[0])
     status = ((qs.get("status") or [""])[0] or "").strip()
     start = ((qs.get("start") or [""])[0] or "").strip() or None
     end = ((qs.get("end") or [""])[0] or "").strip() or None
     page = parse_page(qs)
     per = parse_per_page(qs, default=HISTORY_PER_PAGE)
     total = storage.count_entries(
-        start=start, end=end, q=q or None, status=status or None
+        start=start, end=end, q=q or None, tag=tag, status=status or None
     )
     pages = max(1, (total + per - 1) // per) if total else 1
     if page > pages:
@@ -37,6 +38,7 @@ def page_history(user: str, qs: dict, *, csrf_token: str = "") -> str:
         start=start,
         end=end,
         q=q or None,
+        tag=tag,
         status=status or None,
         limit=per,
         offset=offset,
@@ -51,6 +53,7 @@ def page_history(user: str, qs: dict, *, csrf_token: str = "") -> str:
     )
     extra = {
         "q": q,
+        "tag": tag or "",
         "status": status,
         "start": start or "",
         "end": end or "",

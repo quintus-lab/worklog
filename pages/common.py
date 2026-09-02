@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 import storage
+import tickets
 from pages.markup import (
     DETAILS_HINT,
     DETAILS_PLACEHOLDER,
@@ -146,6 +147,34 @@ def status_options(selected: str = "done") -> str:
     )
 
 
+def render_tag_chips(raw: str, *, ticket: dict | None = None) -> str:
+    """One chip per tag. Chip click filters the log; ticket IDs also link out."""
+    tokens = storage.split_tags(raw)
+    if not tokens:
+        return ""
+    prefixes = (ticket or {}).get("prefixes") or ""
+    url = (ticket or {}).get("url") or ""
+    chips: list[str] = []
+    for tok in tokens:
+        filter_href = "/?" + urlencode({"tag": tok})
+        label = esc(tok)
+        ext = ""
+        if url and tickets.is_ticket_id(tok, prefixes):
+            href = tickets.ticket_href(url, tok)
+            if href:
+                ext = (
+                    f'<a class="tag-ticket-ext" href="{esc(href)}" '
+                    f'rel="noopener noreferrer" target="_blank" '
+                    f'title="Open {label} in ticket system">↗</a>'
+                )
+        chips.append(
+            f'<span class="tag-chip">'
+            f'<a class="tag-chip-filter" href="{esc(filter_href)}">{label}</a>'
+            f"{ext}</span>"
+        )
+    return f'<span class="tag-list">{"".join(chips)}</span>'
+
+
 def render_entry(e: dict, *, editable: bool = True, ticket: dict | None = None) -> str:
     if ticket is None:
         ticket = storage.get_ticket_settings()
@@ -166,11 +195,7 @@ def render_entry(e: dict, *, editable: bool = True, ticket: dict | None = None) 
     owner = (
         f'<span class="badge owner">{esc(e["owner"])}</span>' if e.get("owner") else ""
     )
-    tags = (
-        f'<span class="badge tags">{render_plain_with_tickets(e["tags"], ticket=ticket)}</span>'
-        if e.get("tags")
-        else ""
-    )
+    tags = render_tag_chips(e.get("tags") or "", ticket=ticket)
     fu = (
         f'<span class="badge follow-up">follow-up {esc(e["follow_up"])}</span>'
         if e.get("follow_up")
@@ -229,8 +254,10 @@ def edit_modal_html() -> str:
           <select id="edit-entry-status">{status_options()}</select></label>
       </div>
       <div class="grid-2">
-        <label class="field"><span class="field-label">Tags / ticket</span>
-          <input type="text" id="edit-tags" maxlength="200" placeholder="INC123, BGP" /></label>
+        <label class="field"><span class="field-label">Tags</span>
+          <input type="text" id="edit-tags" maxlength="200"
+            placeholder="HRM BGP 1234567" />
+          <span class="field-hint">Space-separated. 6-12 digit IDs and INC/CHG/KEY-123 become tickets.</span></label>
         <label class="field"><span class="field-label">Follow-up date</span>
           <input type="date" id="edit-follow-up" /></label>
       </div>

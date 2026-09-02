@@ -10,6 +10,7 @@ from pages.common import (
     edit_modal_html,
     esc,
     render_plain_with_tickets,
+    render_tag_chips,
     group_by_day,
     previous_week_range,
     render_entry,
@@ -63,11 +64,7 @@ def page_week(user: str, qs: dict, *, csrf_token: str = "") -> str:
                     if e.get("category") and e["category"] != "General"
                     else ""
                 )
-                tags = (
-                    f'<span class="badge tags">{render_plain_with_tickets(e["tags"], ticket=ticket)}</span>'
-                    if e.get("tags")
-                    else ""
-                )
+                tags = render_tag_chips(e.get("tags") or "", ticket=ticket)
                 tp_items.append(
                     f'<li><span class="tp-date">{esc(day)}</span>'
                     f'<span class="tp-title">{render_plain_with_tickets(e["title"], ticket=ticket)}</span>{cat}{tags}</li>'

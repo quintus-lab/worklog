@@ -38,9 +38,9 @@ Do not copy `.venv` or `data/worklog.pid` between machines. Real notes live only
 
 - Sign-in with **admin** (edit) and **viewer** (read-only) roles  
 - Forced password change when still on default `changeme`  
-- Log / edit / delete entries (tags, follow-up date, status)  
+- Log / edit / delete entries (space-separated tags, follow-up date, status)  
 - Search from the header; date/status filters on **History**  
-- Ticket IDs can link out once you set a ticket URL under **Account**  
+- Ticket IDs typed in **Tags** (INC/CHG, KEY-123, or 6-12 digit numbers) link out once you set a ticket URL under **Account**. Click a tag to list entries with that tag. Numbers in details are not linked.  
 - **Weekly summary** with copy list and print view  
 - Paper (default) and dark themes. Paper follows mole.fit parchment and navy ink.  
 - Admin: users, backups, restore, ticket URL  

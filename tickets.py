@@ -95,8 +95,11 @@ def validate_ticket_settings(url: str, prefixes: str) -> tuple[str, str]:
     return url, prefixes
 
 
+_DIGIT_TICKET_RE = re.compile(r"^\d{6,12}$")
+
+
 def _build_pattern(prefixes: list[str]) -> re.Pattern[str]:
-    """Prefix+digits or Jira KEY-123. Always case-insensitive."""
+    """Prefix+digits or Jira KEY-123. Bare numbers are not matched here."""
     alts = [re.escape(p) + r"\d{4,12}" for p in prefixes]
     # Jira / Linear style project keys
     alts.append(r"[A-Z][A-Z0-9]{1,15}-\d{1,8}")
@@ -114,6 +117,20 @@ def compile_ticket_pattern(prefixes: str) -> re.Pattern[str]:
         compiled = _build_pattern(tokens)
         _pattern_cache[key] = compiled
         return compiled
+
+
+def is_ticket_id(token: str, prefixes: str = "") -> bool:
+    """True for a whole tag token: prefix+digits, KEY-123, or 6-12 digits."""
+    tok = (token or "").strip()
+    if not tok or not _TICKET_ID_RE.fullmatch(tok):
+        return False
+    if _DIGIT_TICKET_RE.fullmatch(tok):
+        return True
+    try:
+        compiled = compile_ticket_pattern(prefixes)
+    except ValueError:
+        compiled = compile_ticket_pattern("")
+    return compiled.fullmatch(tok) is not None
 
 
 def ticket_href(url_template: str, ticket_id: str) -> str | None:

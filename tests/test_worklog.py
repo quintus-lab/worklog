@@ -204,20 +204,22 @@ class WorklogTests(IsolatedAppTest):
         from pages.common import render_entry
 
         card = render_entry(hits[0], editable=False)
+        # Ticket URL only on the Tags chip, not on title/details text
         self.assertIn("https://jira.example.com/browse/INC0012345", card)
-        self.assertIn("https://jira.example.com/browse/NET-99", card)
-        self.assertIn('class="ticket-link"', card)
-        # case-insensitive match; URL uses uppercase id
+        self.assertIn("tag-ticket-ext", card)
+        self.assertNotIn("https://jira.example.com/browse/NET-99", card)
         lower = self.storage.create_entry(
             {
                 "title": "closed inc0011111",
                 "date": "2026-08-12",
-                "details": "net-42 done",
+                "details": "net-42 done 6500123 extra",
+                "tags": "inc0011111",
             }
         )
         low_card = render_entry(lower, editable=False)
         self.assertIn("https://jira.example.com/browse/INC0011111", low_card)
-        self.assertIn("https://jira.example.com/browse/NET-42", low_card)
+        self.assertNotIn("https://jira.example.com/browse/NET-42", low_card)
+        self.assertNotIn("https://jira.example.com/browse/6500123", low_card)
         with self.assertRaises(ValueError):
             self.storage.save_ticket_settings("javascript:alert(1)", "")
         with self.assertRaises(ValueError):
@@ -228,6 +230,54 @@ class WorklogTests(IsolatedAppTest):
             self.storage.save_ticket_settings(
                 "https://x.example/{ticket}", "bad prefix!"
             )
+
+    def test_space_tags_and_digit_tickets(self) -> None:
+        e = self.storage.create_entry(
+            {
+                "title": "Peering change",
+                "date": "2026-08-20",
+                "tags": "HRM BGP 1234567",
+            }
+        )
+        self.assertEqual(e["tags"], "HRM BGP 1234567")
+        comma = self.storage.create_entry(
+            {
+                "title": "Comma tags",
+                "date": "2026-08-21",
+                "tags": "HRM, DNS",
+            }
+        )
+        self.assertEqual(comma["tags"], "HRM DNS")
+        hrm = self.storage.load_entries(tag="HRM")
+        self.assertEqual({x["title"] for x in hrm}, {"Peering change", "Comma tags"})
+        self.assertEqual(self.storage.count_entries(tag="HRM"), 2)
+        bgp = self.storage.load_entries(tag="BGP")
+        self.assertEqual(len(bgp), 1)
+        self.assertEqual(bgp[0]["title"], "Peering change")
+        # substring of a tag must not match
+        self.assertEqual(self.storage.count_entries(tag="HR"), 0)
+        self.storage.save_ticket_settings(
+            "https://jira.example.com/browse/{ticket}", ""
+        )
+        from pages.common import render_entry
+
+        card = render_entry(e, editable=False)
+        self.assertIn("/?tag=HRM", card)
+        self.assertIn("/?tag=BGP", card)
+        self.assertIn("/?tag=1234567", card)
+        self.assertIn("https://jira.example.com/browse/1234567", card)
+        self.assertIn("tag-chip-filter", card)
+        numbered = self.storage.create_entry(
+            {
+                "title": "ASN note",
+                "date": "2026-08-22",
+                "details": "peer 6500123 and circuit 1234567 in the log",
+                "tags": "HRM",
+            }
+        )
+        detail_card = render_entry(numbered, editable=False)
+        self.assertNotIn("https://jira.example.com/browse/6500123", detail_card)
+        self.assertNotIn("https://jira.example.com/browse/1234567", detail_card)
 
     def test_seed_demo_loads_examples(self) -> None:
         import importlib.util
@@ -494,6 +544,12 @@ class HttpTests(IsolatedAppTest):
         status, _, raw = self._request("GET", "/history?q=INC0099999")
         self.assertEqual(status, 200)
         self.assertIn("Closed INC0099999 flap", raw.decode("utf-8"))
+        status, _, raw = self._request("GET", "/?tag=INC0099999")
+        self.assertEqual(status, 200)
+        html = raw.decode("utf-8")
+        self.assertIn("Closed INC0099999 flap", html)
+        self.assertNotIn("Coffee chat", html)
+        self.assertIn("Tag INC0099999", html)
         csrf = self.cookies.get("worklog_csrf") or ""
         payload = json.dumps(
             {
@@ -516,7 +572,7 @@ class HttpTests(IsolatedAppTest):
         status, _, raw = self._request("GET", "/?q=INC0099999")
         html = raw.decode("utf-8")
         self.assertIn("https://jira.example.com/browse/INC0099999", html)
-        self.assertIn("https://jira.example.com/browse/NET-42", html)
+        self.assertNotIn("https://jira.example.com/browse/NET-42", html)
         status, _, raw = self._request("GET", "/settings")
         self.assertEqual(status, 200)
         self.assertIn("Ticket system", raw.decode("utf-8"))

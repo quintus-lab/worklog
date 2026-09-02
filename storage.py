@@ -5,6 +5,7 @@ No admin rights required: database is a single file under data/.
 
 from __future__ import annotations
 
+import re
 import shutil
 import sqlite3
 import threading
@@ -29,7 +30,10 @@ MAX_BACKUPS = 40
 MAX_TITLE_LEN = 200
 MAX_DETAILS_LEN = 8000
 MAX_TAGS_LEN = 200
+MAX_TAG_TOKEN_LEN = 40
+MAX_TAG_COUNT = 16
 MAX_SEARCH_Q_LEN = 200
+_TAG_SPLIT_RE = re.compile(r"[\s,;]+")
 
 CATEGORIES = [
     "General",
@@ -101,7 +105,7 @@ def normalize_entry_fields(data: dict[str, Any], *, partial: bool = False) -> di
         st = str(data.get("status") or "done").strip() or "done"
         out["status"] = st if st in STATUSES else "done"
     if not partial or "tags" in data:
-        out["tags"] = clip(str(data.get("tags") or "").strip(), MAX_TAGS_LEN)
+        out["tags"] = normalize_tags(str(data.get("tags") or ""))
     if not partial or "follow_up" in data:
         fu = str(data.get("follow_up") or "").strip()[:10]
         out["follow_up"] = _require_ymd(fu, "Follow-up") if fu else ""
@@ -248,6 +252,37 @@ def save_ticket_settings(url: str, prefixes: str) -> dict[str, str]:
     return get_ticket_settings()
 
 
+def split_tags(raw: str | None) -> list[str]:
+    """Split tags on spaces, commas, or semicolons. First spelling wins."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for part in _TAG_SPLIT_RE.split(raw or ""):
+        tok = "".join(c for c in part.strip() if c not in "/\\\"'<>")[:MAX_TAG_TOKEN_LEN]
+        if not tok:
+            continue
+        key = tok.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(tok)
+        if len(out) >= MAX_TAG_COUNT:
+            break
+    return out
+
+
+def normalize_tags(raw: str | None) -> str:
+    """Canonical space-separated tags, clipped to MAX_TAGS_LEN."""
+    return clip(" ".join(split_tags(raw)), MAX_TAGS_LEN)
+
+
+def clip_tag_filter(tag: str | None) -> str | None:
+    """One tag token for exact filter; None if blank."""
+    parts = split_tags(tag)
+    if not parts:
+        return None
+    return parts[0]
+
+
 def clip_search_q(q: str | None) -> str | None:
     """Normalize a search string; None/blank → None. Caps length."""
     if q is None:
@@ -276,6 +311,16 @@ def _search_clause(q: str) -> tuple[str, list[Any]]:
         "OR owner LIKE ? ESCAPE '\\' OR status LIKE ? ESCAPE '\\')"
     )
     return sql, [like, like, like, like, like, like]
+
+
+def _tag_clause(tag: str) -> tuple[str, list[Any]]:
+    """Exact token match for space/comma/semicolon-separated tags."""
+    like = _like_contains(f" {tag} ")
+    sql = (
+        " AND (' ' || replace(replace(tags, ',', ' '), ';', ' ') || ' ') "
+        "LIKE ? ESCAPE '\\'"
+    )
+    return sql, [like]
 
 
 def _row_to_entry(row: sqlite3.Row | dict) -> dict[str, Any]:
@@ -520,12 +565,14 @@ def load_entries(
     start: str | None = None,
     end: str | None = None,
     q: str | None = None,
+    tag: str | None = None,
     status: str | None = None,
     limit: int | None = None,
     offset: int = 0,
 ) -> list[dict]:
     init_db()
     q = clip_search_q(q)
+    tag = clip_tag_filter(tag)
     sql = "SELECT * FROM entries WHERE 1=1"
     params: list[Any] = []
     if start:
@@ -541,6 +588,10 @@ def load_entries(
         clause, like_params = _search_clause(q)
         sql += clause
         params.extend(like_params)
+    if tag:
+        clause, tag_params = _tag_clause(tag)
+        sql += clause
+        params.extend(tag_params)
     sql += " ORDER BY date DESC, created_at DESC"
     if limit is not None:
         sql += " LIMIT ? OFFSET ?"
@@ -559,10 +610,12 @@ def count_entries(
     start: str | None = None,
     end: str | None = None,
     q: str | None = None,
+    tag: str | None = None,
     status: str | None = None,
 ) -> int:
     init_db()
     q = clip_search_q(q)
+    tag = clip_tag_filter(tag)
     sql = "SELECT COUNT(*) AS c FROM entries WHERE 1=1"
     params: list[Any] = []
     if start:
@@ -578,6 +631,10 @@ def count_entries(
         clause, like_params = _search_clause(q)
         sql += clause
         params.extend(like_params)
+    if tag:
+        clause, tag_params = _tag_clause(tag)
+        sql += clause
+        params.extend(tag_params)
     with _lock:
         conn = _connect()
         try:

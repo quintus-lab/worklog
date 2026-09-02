@@ -5,8 +5,6 @@ from __future__ import annotations
 import html
 import re
 
-import tickets
-
 DETAILS_PLACEHOLDER = (
     "Tickets, hosts, outcome. **bold**, paste a URL, or [label](https://…)"
 )
@@ -67,30 +65,21 @@ def _autolink_text_nodes(s: str) -> str:
 
 
 def render_inline(text: str, *, ticket: dict | None = None) -> str:
-    """Escape, then **bold**, then [text](url), then bare http(s) URLs, then tickets."""
+    """Escape, then **bold**, then [text](url), then bare http(s) URLs.
+
+    Ticket IDs are not auto-linked here. Only tags entered in the Tags field
+    get ticket-system URLs (see render_tag_chips).
+    """
     s = html.escape(text or "", quote=False)
     s = _BOLD_RE.sub(r"<strong>\1</strong>", s)
     s = _LINK_RE.sub(_link_sub, s)
     s = _autolink_text_nodes(s)
-    if ticket and ticket.get("url"):
-        s = tickets.linkify_tickets(
-            s,
-            url=ticket.get("url") or "",
-            prefixes=ticket.get("prefixes") or "",
-        )
     return s
 
 
 def render_plain_with_tickets(text: str, *, ticket: dict | None = None) -> str:
-    """Escape a single line (title/tags) and link ticket IDs when configured."""
-    s = html.escape(text or "", quote=False)
-    if ticket and ticket.get("url"):
-        s = tickets.linkify_tickets(
-            s,
-            url=ticket.get("url") or "",
-            prefixes=ticket.get("prefixes") or "",
-        )
-    return s
+    """Escape a single line. Ticket URLs belong on tag chips, not titles."""
+    return html.escape(text or "", quote=False)
 
 
 def render_details(text: str, *, ticket: dict | None = None) -> str:
